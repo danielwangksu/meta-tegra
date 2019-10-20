@@ -1,0 +1,51 @@
+From d7adfcb1ba205629878eaf6a84afec4c61c23b5b Mon Sep 17 00:00:00 2001
+From: Matt Madison <matt@madison.systems>
+Date: Sun, 20 Oct 2019 09:04:10 -0700
+Subject: [PATCH] Fix skipuid arg usage for tx2
+
+In both odmfuse.sh and odmsign.func.
+
+---
+ bootloader/odmsign.func | 6 +++++-
+ odmfuse.sh              | 4 +++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/bootloader/odmsign.func b/bootloader/odmsign.func
+index 69f2503..5b07232 100644
+--- a/bootloader/odmsign.func
++++ b/bootloader/odmsign.func
+@@ -721,7 +721,11 @@ odmsign_ext_flash ()
+ 	fi;
+ 
+ 	BINSARGS="--bins \"${SIGNEDBINSARGS}\" ";
+-	SKIPUID="--skipuid ";
++	if [ "${CHIPID}" = "0x18" ]; then
++		SKIPUID=""
++	else
++		SKIPUID="--skipuid ";
++	fi
+ 
+ 	FBARGS="--cmd \"secureflash;reboot\" ";
+ 	FLASHARGS="--bl ${flashername} ${BCT} ${bctfilename}";
+diff --git a/odmfuse.sh b/odmfuse.sh
+index cc60c71..fb1575b 100755
+--- a/odmfuse.sh
++++ b/odmfuse.sh
+@@ -821,6 +821,8 @@ get_board_version ()
+ 		args+="--soft_fuses ${soft_fusesname} "
+ 		args+="--bins \"mb2_applet ${MB2APPLET}\" ";
+ 		command+=";reboot recovery"
++	elif [ "${CHIPID}" = "0x18" ]; then
++	    args+="--skipuid "
+ 	fi
+ 	args+="--cmd \"${command}\" ";
+ 	local cmd="./tegraflash.py ${args}";
+@@ -1436,7 +1438,7 @@ if [ $noburn -eq 1 ]; then
+ 	exit $?;
+ fi;
+ 
+-if [ "${tid}" = "0x18" -o "${tid}" = "0x19" ]; then
++if [ "${tid}" = "0x19" ]; then
+ 	fcmd+=" --skipuid ";
+ fi;
+ 

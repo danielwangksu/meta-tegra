@@ -7,6 +7,8 @@ IMAGE_ROOTFS_ALIGNMENT ?= "4"
 IMAGE_UBOOT ??= "u-boot"
 INITRD_IMAGE ??= ""
 KERNEL_ARGS ??= ""
+TEGRA_SIGNING_ARGS ??= ""
+TEGRA_FLASH_HELPER_ENV ?= "${@'BOARDID=${TEGRA_BOARDID} FAB=${TEGRA_FAB}' if d.getVar('TEGRA_SIGNING_ARGS') != '' else ''}"
 
 DTBFILE ?= "${@os.path.basename(d.getVar('KERNEL_DEVICETREE').split()[0])}"
 LNXFILE ?= "${@'${IMAGE_UBOOT}-${MACHINE}.bin' if '${IMAGE_UBOOT}' != '' else '${INITRD_IMAGE}-${MACHINE}.cboot'}"
@@ -294,7 +296,7 @@ create_tegraflash_pkg_tegra210() {
 	boardcfg=
     fi
 
-    cp ${STAGING_BINDIR_NATIVE}/tegra210-flash/* .
+    cp -R ${STAGING_BINDIR_NATIVE}/tegra210-flash/* .
     tegraflash_custom_pre
     if [ "${TEGRA_SPIFLASH_BOOT}" != "1" ]; then
         mksparse -b ${TEGRA_BLBLOCKSIZE} -v --fillpattern=0 "${IMAGE_TEGRAFLASH_ROOTFS}" ${IMAGE_BASENAME}.img
@@ -382,7 +384,7 @@ create_tegraflash_pkg_tegra186() {
 	    ln -sf $fname ./
 	done
     done
-    cp ${STAGING_BINDIR_NATIVE}/tegra186-flash/* .
+    cp -R ${STAGING_BINDIR_NATIVE}/tegra186-flash/* .
     dd if=/dev/zero of=badpage.bin bs=4096 count=1
     tegraflash_custom_pre
     mksparse -v --fillpattern=0 "${IMAGE_TEGRAFLASH_ROOTFS}" ${IMAGE_BASENAME}.img
@@ -390,7 +392,7 @@ create_tegraflash_pkg_tegra186() {
     rm -f doflash.sh
     cat > doflash.sh <<END
 #!/bin/sh
-./tegra186-flash-helper.sh flash.xml.in ${DTBFILE} ${MACHINE}.cfg ${ODMDATA}
+${TEGRA_FLASH_HELPER_ENV} ./tegra186-flash-helper.sh ${TEGRA_SIGNING_ARGS} flash.xml.in ${DTBFILE} ${MACHINE}.cfg ${ODMDATA} ${LNXFILE}
 END
     chmod +x doflash.sh
     tegraflash_custom_post
@@ -428,7 +430,7 @@ create_tegraflash_pkg_tegra194() {
     for f in ${STAGING_DATADIR}/tegraflash/tegra194-*-bpmp-*.dtb; do
 	ln -s $f .
     done
-    cp ${STAGING_BINDIR_NATIVE}/tegra186-flash/* .
+    cp -R ${STAGING_BINDIR_NATIVE}/tegra186-flash/* .
     tegraflash_custom_pre
     mksparse -v --fillpattern=0 "${IMAGE_TEGRAFLASH_ROOTFS}" ${IMAGE_BASENAME}.img
     tegraflash_create_flash_config "${WORKDIR}/tegraflash" ${LNXFILE}
@@ -545,7 +547,8 @@ oe_make_bup_payload_common() {
     else
         sdramcfg=${MACHINE}.cfg
     fi
-    ./${SOC_FAMILY}-flash-helper.sh --bup ./flash.xml.in ${DTBFILE} $sdramcfg ${ODMDATA}
+    ln -sf ${STAGING_BINDIR_NATIVE}/tegra186-flash/*.py .
+    ./${SOC_FAMILY}-flash-helper.sh --bup ${TEGRA_SIGNING_ARGS} ./flash.xml.in ${DTBFILE} $sdramcfg ${ODMDATA}
     cd "$oldwd"
 }
 

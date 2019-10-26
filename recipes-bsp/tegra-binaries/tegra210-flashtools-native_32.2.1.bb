@@ -1,4 +1,6 @@
 SOC_FAMILY = "tegra210"
+L4T_BSP_NAME = "Nano-TX1"
+L4T_BSP_PREFIX = "Tegra210"
 
 require tegra-binaries-${PV}.inc
 

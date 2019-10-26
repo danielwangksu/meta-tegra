@@ -1,9 +1,10 @@
 #!/bin/bash
 bup_build=
+fuse_burn=
 keyfile=
 sbk_keyfile=
 no_flash=0
-ARGS=$(getopt -n $(basename "$0") -l "bup,no-flash" -o "u:v:" -- "$@")
+ARGS=$(getopt -n $(basename "$0") -l "bup,burnfuses,no-flash" -o "u:v:" -- "$@")
 if [ $? -ne 0 ]; then
     echo "Error parsing options" >&2
     exit 1
@@ -14,6 +15,10 @@ while true; do
     case "$1" in
 	--bup)
 	    bup_build=yes
+	    shift
+	    ;;
+	--burnfuses)
+	    fuse_burn=yes
 	    shift
 	    ;;
 	--no-flash)
@@ -38,6 +43,11 @@ while true; do
 	    ;;
     esac
 done
+
+if [ -n "$fuse_burn" -a $no_flash -ne 0 ] || [ -n "$fuse_burn" -a -n "bup_build" ]; then
+    echo "ERR: cannot combine --burnfuses with other options" >&2
+    exit 1
+fi
 
 flash_in="$1"
 dtb_file="$2"
@@ -163,21 +173,6 @@ skipuid=""
 if [ "$bup_build" = "yes" ]; then
     tfcmd=sign
     skipuid="--skipuid"
-elif [ "$secureflash" = "yes" ]; then
-    tfcmd="secureflash;reboot"
-    cfgappargs="--bct br_bct_BR.bct \
-              --applet rcm_1_signed.rcm"
-    bctargs="--mb1_bct mb1_bct_MB1_sigheader.bct.signed"
-    flashcfg="--cfg secureflash.xml"
-    blarg="--bl nvtboot_recovery_cpu_sigheader.bin.signed"
-    BINSARGS="mb2_bootloader nvtboot_recovery_sigheader.bin.signed; \
-mts_preboot preboot_d15_prod_cr_sigheader.bin.signed; \
-mts_bootpack mce_mts_d15_prod_cr_sigheader.bin.signed; \
-bpmp_fw bpmp_sigheader.bin.signed; \
-bpmp_fw_dtb `basename $BPFDTB_FILE .dtb`_sigheader.dtb.signed; \
-tlk tos_sigheader.img.signed; \
-eks eks_sigheader.img.signed; \
-bootloader_dtb `basename $dtb_file .dtb`_sigheader.dtb.signed"
 elif [ -n "$keyfile" ]; then
     CHIPID="0x18"
     tegraid="$CHIPID"
@@ -194,6 +189,13 @@ elif [ -n "$keyfile" ]; then
     BCTARGS="$bctargs"
     . "$here/odmsign.func"
     odmsign_ext || exit 1
+    if [ $no_flash -ne 0 ]; then
+	if [ -f flashcmd.txt ]; then
+	    ln -sf flashcmd.txt ./secureflash.sh
+	else
+	    echo "WARN: signing completed successfully, but flashcmd.txt missing" >&2
+	fi
+    fi
     exit 0
 fi
 flashcmd="python $flashappname --chip 0x18 $blarg \
@@ -205,6 +207,8 @@ flashcmd="python $flashappname --chip 0x18 $blarg \
 	      --bins \"$BINSARGS\""
 
 if [ "$bup_build" = "yes" ]; then
+    [ -z "$keyfile" ] || flashcmd="${flashcmd} --key \"$keyfile\""
+    [ -z "$sbk_keyfile" ] || flashcmd="${flashcmd} --encrypt_key \"$sbk_keyfile\""
     support_multi_spec=0
     clean_up=0
     dtbfilename="$dtb_file"

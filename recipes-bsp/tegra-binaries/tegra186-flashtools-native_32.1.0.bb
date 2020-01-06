@@ -56,8 +56,9 @@ do_install() {
     install -m 0755 ${S}/bootloader/nv_smd_generator ${D}${BINDIR}
     install -m 0755 ${S}/bootloader/BUP_generator.py ${D}${BINDIR}
     sed -i -e's,^#!/usr/bin/python,#!/usr/bin/env python,' ${D}${BINDIR}/BUP_generator.py
-    install -m 0755 ${S}/bootloader/rollback/rollback_parser.py ${D}${BINDIR}
-    sed -i -e's,^#!/usr/bin/python,#!/usr/bin/env python,' ${D}${BINDIR}/rollback_parser.py
+    install -d ${D}${BINDIR}/rollback
+    install -m 0755 ${S}/bootloader/rollback/rollback_parser.py ${D}${BINDIR}/rollback
+    sed -i -e's,^#!/usr/bin/python,#!/usr/bin/env python,' ${D}${BINDIR}/rollback/rollback_parser.py
     install -m 0644 ${S}/bootloader/l4t_bup_gen.func ${D}${BINDIR}
     install -m 0644 ${S}/bootloader/odmsign.func ${D}${BINDIR}
 
